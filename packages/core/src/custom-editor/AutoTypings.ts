@@ -1,6 +1,6 @@
 import { AutoTypingsCore } from '../AutoTypingsCore';
 import { Options } from '../Options';
-import type * as monaco from 'monaco-editor';
+import type * as monaco from '@swordjs/monaco-editor';
 
 type Editor = monaco.editor.ICodeEditor | monaco.editor.IStandaloneCodeEditor;
 

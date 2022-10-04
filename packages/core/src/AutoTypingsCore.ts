@@ -4,7 +4,7 @@ import { DummySourceCache } from './DummySourceCache';
 import { UnpkgSourceResolver } from './UnpkgSourceResolver';
 import { ImportResolver } from './ImportResolver';
 import * as path from 'path';
-import type * as monaco from 'monaco-editor';
+import type * as monaco from '@swordjs/monaco-editor';
 import { invokeUpdate } from './invokeUpdate';
 import { RecursionDepth } from './RecursionDepth';
 
@@ -69,9 +69,20 @@ export class AutoTypingsCore implements monaco.IDisposable {
     }
   }
 
+  public refresh(){
+    const model = this.editor.getModel();
+    model?.setValue(model.getValue());
+  }
+
+  public removePackage(packageName: string){
+    this.importResolver.removePackage(packageName);
+    this.refresh();
+  }
+
   public setVersions(versions: { [packageName: string]: string }) {
     this.importResolver.setVersions(versions);
     this.options.versions = versions;
+    this.refresh();
   }
 
   public async clearCache() {

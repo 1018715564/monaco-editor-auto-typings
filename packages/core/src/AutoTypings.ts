@@ -1,6 +1,6 @@
 import { AutoTypingsCore } from './AutoTypingsCore';
 import { Options } from './Options';
-import type * as monaco from 'monaco-editor';
+import type * as monaco from '@swordjs/monaco-editor';
 
 type Editor = monaco.editor.ICodeEditor | monaco.editor.IStandaloneCodeEditor;
 
@@ -12,7 +12,7 @@ export class AutoTypings extends AutoTypingsCore {
   public static async create(editor: Editor, options?: Partial<Options>): Promise<AutoTypingsCore> {
     return await AutoTypingsCore.create(editor, {
       ...options,
-      monaco: options?.monaco ?? (await import('monaco-editor')),
+      monaco: options?.monaco ?? (await import('@swordjs/monaco-editor')),
     });
   }
 }

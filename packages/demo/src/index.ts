@@ -1,4 +1,4 @@
-import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import * as monaco from '@swordjs/monaco-editor/esm/vs/editor/editor.api';
 import { AutoTypings, LocalStorageCache } from 'monaco-editor-auto-typings';
 import { editorContents } from './editorContents';
 

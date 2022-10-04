@@ -1,7 +1,7 @@
 import { SourceCache } from './SourceCache';
 import { SourceResolver } from './SourceResolver';
 import { ProgressUpdate } from './ProgressUpdate';
-import type * as monaco from 'monaco-editor';
+import type * as monaco from '@swordjs/monaco-editor';
 
 export interface Options {
   /**

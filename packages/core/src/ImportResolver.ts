@@ -1,4 +1,4 @@
-import type * as monaco from 'monaco-editor';
+import type * as monaco from '@swordjs/monaco-editor';
 import { Options } from './Options';
 import { SourceCache } from './SourceCache';
 import { DummySourceCache } from './DummySourceCache';
@@ -33,19 +33,24 @@ export class ImportResolver {
     this.monaco = options.monaco!;
 
     if (options.preloadPackages && options.versions) {
-      this.versions = options.versions;
-      for (const [packageName, version] of Object.entries(options.versions)) {
-        this.resolveImport(
-          {
-            kind: 'package',
-            packageName: packageName,
-            importPath: '',
-          },
-          new RecursionDepth(this.options)
-        ).catch(e => {
-          console.error(e);
-        });
-      }
+      this.versions = this.options.versions;
+      this.loadPackage(this.versions);
+    }
+  }
+
+  // load / reload package
+  private async loadPackage(versions: Options['versions']) {
+    for (const [packageName, version] of Object.entries(versions || {})) {
+      this.resolveImport(
+        {
+          kind: 'package',
+          packageName: packageName,
+          importPath: '',
+        },
+        new RecursionDepth(this.options)
+      ).catch(e => {
+        console.error(e);
+      });
     }
   }
 
@@ -77,11 +82,21 @@ export class ImportResolver {
   }
 
   private async resolveImport(importResource: ImportResourcePath, depth: RecursionDepth) {
-    const hash = this.hashImportResourcePath(importResource);
+    let hash = this.hashImportResourcePath(importResource);
+    // typings will infer the imported package based on the existing code, and download it actively, and record it through an array of loadfiles;
+    // This variable is mainly used to optimize the performance of the plugin to avoid repeated loading; but if the onlySpecifiedPackages of the current option is true, then typings will not be able to rely on code to import packages, so in this case, the function should not return an empty return , but try another import
+    // hash root demo: react/package.json
+    if (this.options.onlySpecifiedPackages) {
+      let _hash = hash;
+      // If the hash exists in package.json
+      if (hash.indexOf('/package.json') > -1) {
+        _hash = hash.substring(0, hash.indexOf('/package.json'));
+      }
+      if (!Object.keys(this.versions || []).includes(_hash)) return;
+    }
     if (this.loadedFiles.includes(hash)) {
       return;
     }
-
     this.loadedFiles.push(hash);
 
     switch (importResource.kind) {
@@ -100,7 +115,6 @@ export class ImportResolver {
 
   private async resolveImportInPackage(importResource: ImportResourcePathRelativeInPackage, depth: RecursionDepth) {
     const contents = await this.loadSourceFileContents(importResource);
-
     if (contents) {
       const { source, at } = contents;
       this.createModel(
@@ -307,14 +321,31 @@ export class ImportResolver {
     return null;
   }
 
+  public removePackage(packageName: string) {
+    const packageRootPath = `${packageName}/package.json`;
+    this.removeModel(
+      this.monaco.Uri.parse(this.options.fileRootPath + path.join(`node_modules/${packageRootPath}`))
+    );
+    // delete version
+    if (this.versions && this.versions[packageName]) {
+      delete this.versions![packageName];
+      // delete hashfiles
+      const index = this.loadedFiles.indexOf(packageRootPath);
+      if(index > -1){
+        this.loadedFiles.splice(index, 1);
+      }
+      this.setVersions(this.versions);
+    }
+  }
+
   private getVersion(packageName: string) {
     return this.versions?.[packageName];
   }
 
   public setVersions(versions: { [packageName: string]: string }) {
     this.versions = versions;
+    this.loadPackage(versions);
     this.options.onUpdateVersions?.(versions);
-    // TODO reload packages whose version has changed
   }
 
   private setVersion(packageName: string, version: string) {
@@ -329,6 +360,14 @@ export class ImportResolver {
     if (!this.monaco.editor.getModel(uri)) {
       this.monaco.editor.createModel(source, 'typescript', uri);
       this.newImportsResolved = true;
+    }
+  }
+
+  private removeModel(uri: monaco.Uri) {
+    uri = uri.with({ path: uri.path.replace('@types/', '') });
+    const model = this.monaco.editor.getModel(uri);
+    if (model) {
+      model.dispose();
     }
   }
 
