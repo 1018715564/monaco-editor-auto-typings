@@ -321,20 +321,27 @@ export class ImportResolver {
     return null;
   }
 
-  public removePackage(packageName: string) {
+  public async removePackage(packageName: string) {
     const packageRootPath = `${packageName}/package.json`;
-    this.removeModel(
-      this.monaco.Uri.parse(this.options.fileRootPath + path.join(`node_modules/${packageRootPath}`))
-    );
+    this.removeModel(this.monaco.Uri.parse(this.options.fileRootPath + path.join(`node_modules/${packageRootPath}`)));
     // delete version
     if (this.versions && this.versions[packageName]) {
       delete this.versions![packageName];
       // delete hashfiles
       const index = this.loadedFiles.indexOf(packageRootPath);
-      if(index > -1){
+      if (index > -1) {
         this.loadedFiles.splice(index, 1);
       }
       this.setVersions(this.versions);
+    }
+    // 查找package.json下的type, 并且删除type对应的model
+    let pkgJson = await this.resolvePackageJson(packageName);
+    if (pkgJson) {
+      const pkg = JSON.parse(pkgJson);
+      if (pkg.typings || pkg.types) {
+        const typings = pkg.typings || pkg.types;
+        this.removeModel(this.monaco.Uri.parse(this.options.fileRootPath + path.join(`node_modules/${packageName}/${typings.startsWith('./') ? typings.slice(2) : typings}`)));
+      }
     }
   }
 
@@ -368,6 +375,7 @@ export class ImportResolver {
     const model = this.monaco.editor.getModel(uri);
     if (model) {
       model.dispose();
+      this.newImportsResolved = true;
     }
   }
 
